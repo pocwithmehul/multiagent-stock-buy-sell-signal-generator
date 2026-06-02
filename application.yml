@@ -1,0 +1,50 @@
+debug: false
+
+llm:
+  model: gpt-4o-mini        # or ollama/llama3.1, claude-sonnet-4-6, etc.
+  api_base: null             # set to http://localhost:11434 for Ollama
+
+postgres:
+  enabled: true
+  host: localhost
+  port: 5433                 # Docker postgres on 5433 (local postgres stays on 5432)
+  database: stock_signal
+  user: postgres
+  password: postgres
+  backfill_years: 5
+
+kafka:
+  enabled: true
+  bootstrap_servers: localhost:9092
+  topics:
+    prices: stock-prices
+    news: stock-news
+    filings: sec-filings
+    earnings_call: earnings-call-live
+
+qdrant:
+  enabled: true
+  host: localhost
+  port: 6333
+
+neo4j:
+  enabled: true
+  uri: bolt://localhost:7687
+  user: neo4j
+  password: neo4j_password
+
+whisper:
+  model_size: base            # tiny / base / small / medium / large
+  chunk_seconds: 30
+
+feature_flags:
+  unleash:
+    url: http://localhost:4242/api
+    app_name: stock-signal-api
+    refresh_interval_seconds: 15
+  defaults:
+    single_stock_analysis: true
+    watchlist_analysis: false
+    premarket_analysis: false
+    aftermarket_analysis: false
+    knowledge_graph: false    # set true after Neo4j is running
