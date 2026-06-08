@@ -57,8 +57,8 @@ python main.py --ticker AAPL --nogui
 ### 1. Clone and install Python dependencies
 
 ```bash
-git clone https://github.com/<your-org>/StockAIAssistant.git
-cd StockAIAssistant
+git clone https://github.com/pocwithmehul/multiagent-stock-buy-sell-signal-generator.git
+cd multiagent-stock-buy-sell-signal-generator
 pip install -r requirements.txt
 ```
 
