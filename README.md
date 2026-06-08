@@ -11,7 +11,7 @@ A multi-agent AI system that generates stock buy/sell/hold signals using various
 3. [Installation](#installation)
 4. [Configuration — application.yml](#configuration--applicationyml)
 5. [Docker Compose](#docker-compose)
-6. [Initialisation Scripts](#initialisation-scripts)
+6. [Initialization Scripts](#initialization-scripts)
 7. [Feature Flags](#feature-flags)
 8. [Running the Application](#running-the-application)
 9. [All CLI Options](#all-cli-options)
@@ -225,7 +225,7 @@ docker compose --profile feature-flags down
 
 ---
 
-## Initialisation Scripts
+## Initialization Scripts
 
 Run these once after Docker services are healthy, in this order:
 
@@ -4121,4 +4121,4 @@ pytest tests/ -k "test_signal" -v
 
 ## License
 
-MIT
+GNU General Public License v3.0

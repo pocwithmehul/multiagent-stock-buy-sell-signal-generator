@@ -1,0 +1,83 @@
+# Stock AI Assistant Configuration
+# Copy this file to application.yml and customize for your environment
+
+# Multi-Agent Mode (47 specialized agents vs single all-in-one agent)
+multi_agent:
+  enabled: false  # Set to true to use multi-agent mode by default
+
+# Kafka Configuration
+kafka:
+  enabled: false  # Set to true to auto-enable Kafka without --kafka flag
+  bootstrap_servers: "localhost:9092"
+  topics:
+    prices: "stock-prices"
+    news: "stock-news"
+    filings: "sec-filings"
+
+# Qdrant Vector Database
+qdrant:
+  enabled: false  # Set to true to auto-enable Qdrant without --qdrant flag
+  host: "localhost"
+  port: 6333
+  database: "stock-signal"
+  collections:
+    news: "stock_news"
+    filings: "sec_filings"
+    prices: "stock_prices"
+
+# PostgreSQL (historical price cache)
+postgres:
+  enabled: false  # Set to true to cache price data in PostgreSQL
+  host: "localhost"
+  port: 5432
+  database: "stock_signal"
+  user: "postgres"
+  password: "postgres"  # Default for docker-compose; change in production
+  sslmode: "prefer"
+  connect_timeout: 5
+  prices_table: "stock_prices_daily"
+  backfill_years: 5
+
+# Embeddings
+embeddings:
+  model: "all-MiniLM-L6-v2"
+  dimension: 384
+
+# SEC EDGAR API
+sec:
+  user_agent: "StockSignalAgent/1.0 (your-email@example.com)"
+  base_url: "https://efts.sec.gov/LATEST"
+  submissions_url: "https://data.sec.gov/submissions"
+  tickers_url: "https://www.sec.gov/files/company_tickers.json"
+
+# LLM Configuration
+llm:
+  model: "gpt-4o-mini"
+  api_base: null  # Set for local LLMs, e.g., "http://localhost:11434" for Ollama
+
+# API Server
+api:
+  host: "0.0.0.0"
+  port: 8000
+
+# Observability (optional)
+observability:
+  langfuse:
+    enabled: false
+    public_key: null
+    secret_key: null
+    host: "https://cloud.langfuse.com"
+
+# Feature Flags (Unleash for local, AWS AppConfig for cloud)
+feature_flags:
+  unleash:
+    url: "http://localhost:4242/api"
+    app_name: "stock-signal-api"
+    refresh_interval_seconds: 15
+  appconfig:
+    poll_interval_seconds: 60
+  defaults:
+    single_stock_analysis: true
+    watchlist_analysis: false
+    premarket_analysis: false
+    aftermarket_analysis: false
