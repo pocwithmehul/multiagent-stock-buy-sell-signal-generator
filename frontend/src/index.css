@@ -1,0 +1,144 @@
+/**
+ * Global Stylesheet for Stock Signal Dashboard
+ *
+ * This file contains the global CSS styles and Tailwind CSS configuration
+ * for the React frontend. It defines:
+ *   - Tailwind CSS directive imports
+ *   - CSS custom properties (variables)
+ *   - Base element styles
+ *   - Custom component classes
+ *
+ * Architecture:
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │                         CSS Layers                               │
+ * ├─────────────────────────────────────────────────────────────────┤
+ * │                                                                  │
+ * │   @tailwind base;       → CSS reset and base element styles     │
+ * │   @tailwind components; → Tailwind component classes            │
+ * │   @tailwind utilities;  → Utility classes (flex, p-4, etc.)     │
+ * │                                                                  │
+ * │   :root { ... }         → CSS custom properties (dark theme)    │
+ * │   body { ... }          → Base body styles                      │
+ * │   @layer components     → Custom signal badge classes           │
+ * │                                                                  │
+ * └─────────────────────────────────────────────────────────────────┘
+ *
+ * Color Scheme:
+ *   - Dark theme by default (color-scheme: light dark)
+ *   - Background: #242424 (dark gray)
+ *   - Text: rgba(255, 255, 255, 0.87) (off-white)
+ *
+ * Custom Colors (defined in tailwind.config.js):
+ *   - buy-light / buy-dark: Green tones for BUY signals
+ *   - sell-light / sell-dark: Red tones for SELL signals
+ *   - hold-light / hold-dark: Yellow tones for HOLD signals
+ *
+ * Typography:
+ *   - Primary font: Inter, system-ui, Avenir, Helvetica, Arial
+ *   - Font smoothing enabled for crisp text rendering
+ *   - Line height: 1.5 for readability
+ *
+ * Dependencies:
+ *   - Tailwind CSS v3: Utility-first CSS framework
+ *
+ * References:
+ *   - Tailwind CSS: https://tailwindcss.com/docs
+ *   - CSS Custom Properties: https://developer.mozilla.org/en-US/docs/Web/CSS/--*
+ *   - @layer directive: https://tailwindcss.com/docs/adding-custom-styles#using-css-and-layer
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Tailwind CSS Imports
+   These directives inject Tailwind's generated styles at build time.
+   Order matters: base → components → utilities (specificity cascade)
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@tailwind base;        /* Preflight CSS reset + base element styles */
+@tailwind components;  /* Component classes (can be extended with @layer) */
+@tailwind utilities;   /* Utility classes (p-4, flex, text-white, etc.) */
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CSS Custom Properties (Variables)
+   Defines global design tokens for the application.
+   These are applied to the :root element for global scope.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* Typography - Font stack with fallbacks */
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;      /* Standard line height for readability */
+  font-weight: 400;      /* Normal weight as default */
+
+  /* Color scheme - Enables dark mode for system UI elements */
+  color-scheme: light dark;
+
+  /* Default text and background colors (dark theme) */
+  color: rgba(255, 255, 255, 0.87);  /* Off-white for reduced eye strain */
+  background-color: #242424;          /* Dark gray background */
+
+  /* Font rendering optimizations */
+  font-synthesis: none;               /* Prevent synthetic bold/italic */
+  text-rendering: optimizeLegibility; /* Optimize kerning and ligatures */
+  -webkit-font-smoothing: antialiased;     /* Smooth fonts on WebKit */
+  -moz-osx-font-smoothing: grayscale;      /* Smooth fonts on Firefox/macOS */
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Base Body Styles
+   Applied to the <body> element to ensure consistent layout behavior.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+body {
+  margin: 0;            /* Remove default browser margin */
+  min-width: 320px;     /* Minimum supported viewport width */
+  min-height: 100vh;    /* Full viewport height for footer positioning */
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Custom Component Classes
+   Using @layer components ensures these classes integrate properly
+   with Tailwind's specificity system and can be overridden by utilities.
+
+   Signal Badge Classes:
+   These provide semantic styling for BUY/SELL/HOLD indicators.
+   Colors reference custom theme colors from tailwind.config.js:
+     - bg-buy-light, text-buy-dark: Green tones
+     - bg-sell-light, text-sell-dark: Red tones
+     - bg-hold-light, text-hold-dark: Yellow tones
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  /**
+   * Base signal badge styling.
+   * Creates a pill-shaped badge with consistent sizing.
+   *
+   * Usage: <span class="signal-badge signal-badge-buy">BUY</span>
+   */
+  .signal-badge {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold;
+  }
+
+  /**
+   * BUY signal styling - Green color scheme.
+   * Indicates a positive/bullish recommendation.
+   */
+  .signal-badge-buy {
+    @apply bg-buy-light text-buy-dark;
+  }
+
+  /**
+   * SELL signal styling - Red color scheme.
+   * Indicates a negative/bearish recommendation.
+   */
+  .signal-badge-sell {
+    @apply bg-sell-light text-sell-dark;
+  }
+
+  /**
+   * HOLD signal styling - Yellow/amber color scheme.
+   * Indicates a neutral/wait recommendation.
+   */
+  .signal-badge-hold {
+    @apply bg-hold-light text-hold-dark;
+  }
+}
