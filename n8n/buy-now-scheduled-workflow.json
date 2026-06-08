@@ -1,0 +1,430 @@
+{
+  "name": "Buy-Now Scheduler (DB Driven)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [180, 220]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/5 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule_poll",
+      "name": "Schedule Trigger (Every 5 Min)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [180, 420]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "api_base",
+              "name": "api_base",
+              "value": "http://localhost:8000",
+              "type": "string"
+            },
+            {
+              "id": "script_path",
+              "name": "script_path",
+              "value": "/Users/mehul/AI-POC/StockAIAssistant/scripts/scheduled_buy_now_report.py",
+              "type": "string"
+            },
+            {
+              "id": "due_limit",
+              "name": "due_limit",
+              "value": 25,
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_scheduler_config",
+      "name": "Set Scheduler API Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 320]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.api_base + '/schedules/due?limit=' + $json.due_limit }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "http_get_due_schedules",
+      "name": "HTTP Get Due Schedules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [700, 320],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $item(0).$node['Set Scheduler API Config'].json.api_base + '/watchlist' }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "http_get_watchlist",
+      "name": "HTTP Get Watchlist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [820, 460],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "functionCode": "const rows = $item(0).$node['HTTP Get Due Schedules'].json.schedules || [];\nconst tickers = items[0].json.tickers || [];\nconst watchlistCsv = Array.isArray(tickers) ? tickers.join(',') : '';\nreturn rows.map((row) => ({\n  json: {\n    ...row,\n    watchlist_csv: watchlistCsv,\n  },\n}));"
+      },
+      "id": "expand_due_rows",
+      "name": "Expand Due Rows",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1060, 320]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "has_due_rows",
+              "leftValue": "={{ $items().length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "larger"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_has_due_rows",
+      "name": "Any Due Rows?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1260, 320]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "script_path_runtime",
+              "name": "script_path",
+              "value": "={{ $item(0).$node['Set Scheduler API Config'].json.script_path }}",
+              "type": "string"
+            },
+            {
+              "id": "api_base_runtime",
+              "name": "api_base",
+              "value": "={{ $item(0).$node['Set Scheduler API Config'].json.api_base }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "attach_runtime_params",
+      "name": "Attach Runtime Params",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1460, 220]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split_in_batches",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1660, 220]
+    },
+    {
+      "parameters": {
+        "command": "=python {{$json.script_path}} --session {{$json.session_type}} --watchlist \"{{$json.watchlist_csv}}\" --days {{$json.days}} --model {{$json.model}} --top-n {{$json.top_n}} --email {{$json.email}}"
+      },
+      "id": "execute_schedule_runner",
+      "name": "Execute Scheduled Runner",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1860, 220]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "exit_success",
+              "leftValue": "={{ Number($json.exitCode || 0) }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_runner_success",
+      "name": "Runner Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [2060, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $item(0).$node['Attach Runtime Params'].json.api_base + '/schedules/' + $item(0).$node['Split In Batches'].json.id + '/run-result' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"success\",\n  \"error\": null\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http_mark_success",
+      "name": "Mark Success",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2280, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $item(0).$node['Attach Runtime Params'].json.api_base + '/schedules/' + $item(0).$node['Split In Batches'].json.id + '/run-result' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"failed\",\n  \"error\": $json.stderr || \"Unknown runner error\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "http_mark_failed",
+      "name": "Mark Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2280, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Scheduler API Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger (Every 5 Min)": {
+      "main": [
+        [
+          {
+            "node": "Set Scheduler API Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Scheduler API Config": {
+      "main": [
+        [
+          {
+            "node": "HTTP Get Due Schedules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Get Due Schedules": {
+      "main": [
+        [
+          {
+            "node": "HTTP Get Watchlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Get Watchlist": {
+      "main": [
+        [
+          {
+            "node": "Expand Due Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Due Rows": {
+      "main": [
+        [
+          {
+            "node": "Any Due Rows?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Any Due Rows?": {
+      "main": [
+        [
+          {
+            "node": "Attach Runtime Params",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Attach Runtime Params": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "Execute Scheduled Runner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Scheduled Runner": {
+      "main": [
+        [
+          {
+            "node": "Runner Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Runner Success?": {
+      "main": [
+        [
+          {
+            "node": "Mark Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Success": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Failed": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "versionId": "buy-now-db-scheduler-v2"
+}

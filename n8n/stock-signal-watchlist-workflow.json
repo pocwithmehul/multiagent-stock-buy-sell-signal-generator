@@ -1,0 +1,609 @@
+{
+  "name": "Stock Signal Watchlist Pipeline",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual_trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "35 9 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "schedule_trigger",
+      "name": "Schedule Trigger (Weekdays 9:35)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "api_base",
+              "name": "api_base",
+              "value": "http://localhost:8000",
+              "type": "string"
+            },
+            {
+              "id": "mode",
+              "name": "mode",
+              "value": "multi",
+              "type": "string"
+            },
+            {
+              "id": "model",
+              "name": "model",
+              "value": "claude-sonnet-4-6",
+              "type": "string"
+            },
+            {
+              "id": "days",
+              "name": "days",
+              "value": 365,
+              "type": "number"
+            },
+            {
+              "id": "min_confidence",
+              "name": "min_confidence",
+              "value": 0.75,
+              "type": "number"
+            },
+            {
+              "id": "watchlist",
+              "name": "watchlist",
+              "value": "={{ [\"AAPL\", \"MSFT\", \"GOOGL\", \"TEAM\", \"NVDA\"] }}",
+              "type": "array"
+            },
+            {
+              "id": "ml_analysis",
+              "name": "ml_analysis",
+              "value": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_workflow_config",
+      "name": "Set Workflow Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        520,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const cfg = items[0].json;\nconst watchlist = Array.isArray(cfg.watchlist) ? cfg.watchlist : [];\nreturn watchlist.map((ticker) => ({\n  json: {\n    ticker,\n    api_base: cfg.api_base,\n    mode: cfg.mode,\n    model: cfg.model,\n    days: cfg.days,\n    min_confidence: cfg.min_confidence,\n    ml_analysis: cfg.ml_analysis !== false,\n  },\n}));"
+      },
+      "id": "expand_watchlist",
+      "name": "Expand Watchlist",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        760,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split_in_batches",
+      "name": "Split In Batches",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        980,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.api_base + \"/signal\" }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"ticker\": $json.ticker,\n  \"days\": $json.days,\n  \"model\": $json.model,\n  \"mode\": $json.mode,\n  \"verbose\": true,\n  \"ml_analysis\": $json.ml_analysis\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          },
+          "timeout": 600000
+        }
+      },
+      "id": "http_generate_signal",
+      "name": "HTTP Generate Signal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        320
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "http_success",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 400,
+              "operator": {
+                "type": "number",
+                "operation": "smaller"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_http_success",
+      "name": "HTTP Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1420,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ticker",
+              "name": "ticker",
+              "value": "={{ $json.body.ticker }}",
+              "type": "string"
+            },
+            {
+              "id": "signal",
+              "name": "signal",
+              "value": "={{ $json.body.signal }}",
+              "type": "string"
+            },
+            {
+              "id": "confidence",
+              "name": "confidence",
+              "value": "={{ Number($json.body.confidence || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "reasoning",
+              "name": "reasoning",
+              "value": "={{ $json.body.reasoning || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "mode",
+              "name": "mode",
+              "value": "={{ $json.body.mode || \"multi\" }}",
+              "type": "string"
+            },
+            {
+              "id": "agents_used",
+              "name": "agents_used",
+              "value": "={{ $json.body.agents_used || 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $json.body.timestamp || new Date().toISOString() }}",
+              "type": "string"
+            },
+            {
+              "id": "min_confidence",
+              "name": "min_confidence",
+              "value": "={{ $item(0).$node[\"Split In Batches\"].json.min_confidence }}",
+              "type": "number"
+            },
+            {
+              "id": "ml_enabled",
+              "name": "ml_enabled",
+              "value": "={{ $json.body.ml_enabled || false }}",
+              "type": "boolean"
+            },
+            {
+              "id": "ensemble_signal",
+              "name": "ensemble_signal",
+              "value": "={{ $json.body.ensemble_signal || \"\" }}",
+              "type": "string"
+            },
+            {
+              "id": "ensemble_confidence",
+              "name": "ensemble_confidence",
+              "value": "={{ Number($json.body.ensemble_confidence || 0) }}",
+              "type": "number"
+            },
+            {
+              "id": "target_price",
+              "name": "target_price",
+              "value": "={{ Number($json.body.target_price || 0) }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_normalize_success",
+      "name": "Normalize Signal Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1640,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ticker",
+              "name": "ticker",
+              "value": "={{ $item(0).$node[\"Split In Batches\"].json.ticker }}",
+              "type": "string"
+            },
+            {
+              "id": "status_code",
+              "name": "status_code",
+              "value": "={{ $json.statusCode || 500 }}",
+              "type": "number"
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "value": "={{ JSON.stringify($json.body || $json) }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set_failure_payload",
+      "name": "Prepare Failure Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1640,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "signal_is_buy",
+              "leftValue": "={{ $json.signal }}",
+              "rightValue": "BUY",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "confidence_check",
+              "leftValue": "={{ Number($json.confidence || 0) }}",
+              "rightValue": "={{ Number($json.min_confidence || 0.75) }}",
+              "operator": {
+                "type": "number",
+                "operation": "largerEqual"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_high_conviction_buy",
+      "name": "High Conviction BUY?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1860,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "alert_message",
+              "name": "alert_message",
+              "value": "={{ \"BUY signal: \" + $json.ticker + \" | confidence=\" + $json.confidence + ($json.ml_enabled ? \" | ensemble=\" + $json.ensemble_signal + \"(\" + $json.ensemble_confidence + \")\" : \"\") + \" | target=$\" + ($json.target_price > 0 ? $json.target_price.toFixed(2) : \"N/A\") + \" | agents=\" + $json.agents_used + \" | ts=\" + $json.timestamp }}",
+              "type": "string"
+            },
+            {
+              "id": "alert_payload",
+              "name": "alert_payload",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "build_alert_payload",
+      "name": "Build Alert Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2080,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "audit_record",
+              "name": "audit_record",
+              "value": "={{ {\n  ticker: $json.ticker,\n  signal: $json.signal,\n  confidence: $json.confidence,\n  reasoning: $json.reasoning,\n  mode: $json.mode,\n  agents_used: $json.agents_used,\n  ml_enabled: $json.ml_enabled,\n  ensemble_signal: $json.ensemble_signal,\n  ensemble_confidence: $json.ensemble_confidence,\n  target_price: $json.target_price,\n  timestamp: $json.timestamp\n} }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "build_audit_payload",
+      "name": "Build Audit Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2080,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "audit_failure",
+              "name": "audit_failure",
+              "value": "={{ $json }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "build_failure_audit",
+      "name": "Build Failure Audit",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1860,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Workflow Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger (Weekdays 9:35)": {
+      "main": [
+        [
+          {
+            "node": "Set Workflow Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Workflow Config": {
+      "main": [
+        [
+          {
+            "node": "Expand Watchlist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Watchlist": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split In Batches": {
+      "main": [
+        [
+          {
+            "node": "HTTP Generate Signal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Generate Signal": {
+      "main": [
+        [
+          {
+            "node": "HTTP Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Success?": {
+      "main": [
+        [
+          {
+            "node": "Normalize Signal Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Failure Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Signal Response": {
+      "main": [
+        [
+          {
+            "node": "High Conviction BUY?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Failure Payload": {
+      "main": [
+        [
+          {
+            "node": "Build Failure Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Conviction BUY?": {
+      "main": [
+        [
+          {
+            "node": "Build Alert Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Audit Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Alert Payload": {
+      "main": [
+        [
+          {
+            "node": "Build Audit Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Audit Payload": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Failure Audit": {
+      "main": [
+        [
+          {
+            "node": "Split In Batches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "versionId": "2",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "id": "stock-signal-watchlist-workflow",
+  "tags": []
+}
